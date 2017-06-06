@@ -1,22 +1,29 @@
 package tcplib
 
 import (
-    "net"
+	"../codec"
+	"net"
 )
 
 type TcpConn struct {
-    tcpServer *TcpServer
-    conn *ComConn
+	tcpServer *TcpServer
+	conn      *ComConn
+	cdc       *codec.Codec
 }
 
 func NewTcpConn(tcpServer *TcpServer, nativeConn *net.Conn) *TcpConn {
-    return &TcpConn{tcpServer, &ComConn{nativeConn}}
+	c := &TcpConn{}
+	c.tcpServer = tcpServer
+	c.cdc = tcpServer.cdc
+	c.conn = &ComConn{nativeConn, c.cdc}
+	return c
 }
 
-func (c *TcpConn) Read () {
-    go (*(c.conn)).Read()
+func (c *TcpConn) Read() {
+	c.conn.Read()
 }
 
-func (c *TcpConn) Send(str string) {
-    (*(c.conn)).Write(str)
+func (c *TcpConn) Send(i interface{}) {
+	b := c.cdc.Encode(i)
+	c.conn.Write(b)
 }

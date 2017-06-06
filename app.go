@@ -1,21 +1,36 @@
 package main
 
-import "./net/tcplib"
+import (
+	"./net/codec"
+	"./net/tcplib"
+	"./pb/pbcpl"
+	"fmt"
+)
+
+func f(msgId uint32, msg interface{}) {
+	fmt.Println(msgId, "#", msg)
+}
 
 func main() {
-    server := &tcplib.TcpServer{Host : "127.0.0.1", Port : "3456"};
-    server.Start();
+	cdc := codec.NewCodec()
 
-    client1 := &tcplib.TcpClient{Host : "127.0.0.1", Port : "3456"};
-    client1.Start();
+	cdc.RegisterProto(1, &pbcpl.CSLogin{}, f)
 
-    client2 := &tcplib.TcpClient{Host : "127.0.0.1", Port : "3456"};
-    client2.Start();
+	server := tcplib.NewTcpServer("127.0.0.1", "3456", cdc)
+	server.Start()
 
-    server.Broadcast("Hello, clients!")
-    client1.Send("Hello, Server!")
-    client2.Send("Hello, Server!")
+	client := tcplib.NewTcpClient("127.0.0.1", "3456", cdc)
+	client.Start()
 
-    endRunning := make(chan bool, 1)
-    <-endRunning
+	p := &pbcpl.CSLogin{}
+	cmd := pbcpl.PACKET_ID_PACKET_CS_LOGIN_CSLogin
+	p.Cmd = &cmd
+	accountName := "jack"
+	p.AccountName = &accountName
+	password := "123456"
+	p.Password = &password
+	client.Send(p)
+
+	endRunning := make(chan bool, 1)
+	<-endRunning
 }

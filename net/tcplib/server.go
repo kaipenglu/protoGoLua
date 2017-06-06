@@ -1,35 +1,44 @@
 package tcplib
 
 import (
-    "fmt"
-    "net"
+	"../codec"
+	"fmt"
+	"net"
 )
 
 type TcpServer struct {
-    Host string
-    Port string
-    connMap map[string] *TcpConn
-    // protoMap map[in32] int32
+	host    string
+	port    string
+	connMap map[string]*TcpConn
+	cdc     *codec.Codec
+}
+
+func NewTcpServer(host, port string, cdc *codec.Codec) *TcpServer {
+	srv := &TcpServer{}
+	srv.host = host
+	srv.port = port
+	srv.connMap = make(map[string]*TcpConn)
+	srv.cdc = cdc
+	return srv
 }
 
 func (srv *TcpServer) Start() {
-    srv.connMap = make(map[string] *TcpConn)
-    ln, _ := net.Listen("tcp", srv.Host + ":" + srv.Port)
+	ln, _ := net.Listen("tcp", srv.host+":"+srv.port)
 
-    go func() {
-        for {
-            nativeConn, _ := ln.Accept()
-            tcpConn := NewTcpConn(srv, &nativeConn)
-            addr := (*(*(tcpConn.conn)).conn).RemoteAddr().String()
-            srv.connMap[addr] = tcpConn
-            go tcpConn.Read()
-            fmt.Println("A client connected : " + addr)
-        }
-    } ()
+	go func() {
+		for {
+			nativeConn, _ := ln.Accept()
+			tcpConn := NewTcpConn(srv, &nativeConn)
+			addr := (*(*(tcpConn.conn)).conn).RemoteAddr().String()
+			srv.connMap[addr] = tcpConn
+			tcpConn.Read()
+			fmt.Println("A client connected : " + addr)
+		}
+	}()
 }
 
-func (srv *TcpServer) Broadcast(str string) {
-    for _, v := range srv.connMap {
-        v.Send(str)
-    }
+func (srv *TcpServer) Broadcast(i interface{}) {
+	for _, v := range srv.connMap {
+		v.Send(i)
+	}
 }
