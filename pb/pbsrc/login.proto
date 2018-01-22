@@ -1,0 +1,19 @@
+syntax = "proto2";
+option go_package = "pbcpl";
+
+
+enum PACKET_ID {
+    PACKET_LOGIN_REQ = 1;
+    PACKET_LOGIN_RES = 2;
+}
+
+message LoginReq {
+    optional PACKET_ID cmd = 1 [default=PACKET_LOGIN_REQ];
+    required string name = 2;
+    required string pwd = 3;
+}
+
+message LoginRes {
+    optional PACKET_ID cmd = 1 [default=PACKET_LOGIN_RES];
+    required string ans = 2;
+}

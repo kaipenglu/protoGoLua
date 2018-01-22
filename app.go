@@ -9,8 +9,6 @@ import (
     "path"
     "./hdl"
     "runtime"
-    "os"
-    "strconv"
 )
 
 type Job struct {
@@ -35,25 +33,27 @@ func worker(workId int, jobs <-chan *Job) {
         var res interface{}
 
         if j.msgId == 1 {
-            res = hdl.Login(L, j.msg)
+            res = hdl.LoginReq(L, j.msg)
         }
 
-        c := j.c
-        c.Send(res)
+        if j.msgId == 2 {
+            res = hdl.LoginRes(L, j.msg)
+        }
+
+        if res != nil {
+            c := j.c
+            c.Send(res)
+        }
     }
 }
 
 func main() {
 	cdc := codec.NewCodec()
-	cdc.RegisterProto(1, &pbcpl.CSLogin{})
-
-    routineNum, err := strconv.Atoi(os.Args[1])
-    if err != nil {
-        routineNum = runtime.NumCPU()
-    }
+	cdc.RegisterProto(uint32(pbcpl.PACKET_ID_PACKET_LOGIN_REQ), &pbcpl.LoginReq{})
+    cdc.RegisterProto(uint32(pbcpl.PACKET_ID_PACKET_LOGIN_RES), &pbcpl.LoginRes{})
 
     jobs := make(chan *Job, 100)
-    for i := 0; i < routineNum; i++ {
+    for i := 0; i < runtime.NumCPU(); i++ {
         go worker(i, jobs)
     }
 
@@ -71,13 +71,13 @@ func main() {
 	client := tcplib.NewTcpClient("127.0.0.1", "3456", cdc)
 	client.Start()
 
-	p := &pbcpl.CSLogin{}
-	cmd := pbcpl.PACKET_ID_PACKET_CS_LOGIN_CSLogin
+	p := &pbcpl.LoginReq{}
+	cmd := pbcpl.PACKET_ID_PACKET_LOGIN_REQ
 	p.Cmd = &cmd
-	accountName := "jack"
-	p.AccountName = &accountName
-	password := "123456"
-	p.Password = &password
+	name := "jack"
+	p.Name = &name
+	pwd := "123456"
+	p.Pwd = &pwd
 	client.Send(p)
 	
 	endRunning := make(chan bool, 1)
