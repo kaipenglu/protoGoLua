@@ -34,17 +34,22 @@ func (c *ComConn) Read() {
 	scanner.Split(split)
 	go func() {
 		for scanner.Scan() {
-			c.cdc.Decode(scanner.Bytes())
+			c.cdc.Decode(scanner.Bytes(), c)
 		}
 	}()
 }
 
 func (c *ComConn) Write(b []byte) {
-    if len(b) == 0 {
-        return
-    }
+	if len(b) == 0 {
+		return
+	}
 	a := make([]byte, 4)
 	binary.LittleEndian.PutUint32(a, uint32(len(b)))
 	(*(c.conn)).Write(a)
 	(*(c.conn)).Write(b)
+}
+
+func (c *ComConn) Send(i interface{}) {
+    b := c.cdc.Encode(i)
+    c.Write(b)
 }

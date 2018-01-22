@@ -27,6 +27,5 @@ func (c *TcpClient) Start() {
 }
 
 func (c *TcpClient) Send(i interface{}) {
-	b := c.cdc.Encode(i)
-    c.conn.Write(b)
+    c.conn.Send(i)
 }

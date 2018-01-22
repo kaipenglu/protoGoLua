@@ -7,44 +7,45 @@ import (
 	"reflect"
 )
 
-type MessageHandler func(msgId uint32, msg interface{})
-
-type MsgProtoInfo struct {
-	msgType    reflect.Type
-	msgHandler MessageHandler
-}
+type MessageHandler func(msgId uint32, msg, client interface{})
 
 type Codec struct {
-	protoMap map[uint32]MsgProtoInfo
+	handlers []MessageHandler
+	protoMap map[uint32]reflect.Type
 }
 
 func NewCodec() *Codec {
 	cdc := &Codec{}
-	cdc.protoMap = make(map[uint32]MsgProtoInfo)
+	cdc.protoMap = make(map[uint32]reflect.Type)
 	return cdc
 }
 
-func (cdc *Codec) RegisterProto(msgId uint32, msg interface{}, handler MessageHandler) {
-	var mpi MsgProtoInfo
-	mpi.msgType = reflect.TypeOf(msg.(proto.Message))
-	mpi.msgHandler = handler
-	cdc.protoMap[msgId] = mpi
+func (cdc *Codec) RegisterProto(msgId uint32, msg interface{}) {
+	msgType := reflect.TypeOf(msg.(proto.Message))
+	cdc.protoMap[msgId] = msgType
 }
 
-func (cdc *Codec) Decode(b []byte) {
+func (cdc *Codec) RegisterHandle(handler MessageHandler) {
+	cdc.handlers = append(cdc.handlers, handler)
+}
+
+func (cdc *Codec) Decode(b []byte, client interface{}) {
 	if len(b) < 4 {
 		return
 	}
 
 	msgId := binary.LittleEndian.Uint32(b[:4])
-	if mgi, ok := cdc.protoMap[msgId]; ok {
-		msg := reflect.New(mgi.msgType.Elem()).Interface()
+	if msgType, ok := cdc.protoMap[msgId]; ok {
+		msg := reflect.New(msgType.Elem()).Interface()
 		err := proto.Unmarshal(b[4:], msg.(proto.Message))
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
-		mgi.msgHandler(msgId, msg)
+
+		for i := 0; i < len(cdc.handlers); i++ {
+			cdc.handlers[i](msgId, msg, client)
+		}
 	}
 }
 
@@ -69,4 +70,12 @@ func (cdc *Codec) Encode(msg interface{}) (b []byte) {
 	}
 	b = append(h, t...)
 	return
+}
+
+func (cdc *Codec) MsgIdToInterface(msgId uint32) interface{} {
+	if msgType, ok := cdc.protoMap[msgId]; ok {
+		msg := reflect.New(msgType.Elem()).Interface()
+		return msg
+	}
+	return nil
 }
